@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+read -d '' KEYFILE << END
+{{prank_base64}}
+END
+
+echo "$KEYFILE" | base64 --decode | bash

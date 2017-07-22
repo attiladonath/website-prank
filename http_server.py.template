@@ -1,0 +1,47 @@
+import socket
+
+hostname = '{{hostname}}'
+html = '''
+{{page_html}}
+'''
+
+host = '127.0.0.1'
+port = 80
+
+try:
+  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+  s.bind((host, port))
+  s.listen(5)
+
+  while True:
+    try:
+      serve = False
+      c, (client_host, client_port) = s.accept()
+      c.settimeout(2.0)
+
+      try:
+        while True:
+          data = c.recv(1024)
+          if not data:
+            break
+
+          if hostname in data:
+            serve = True
+            break
+      except socket.timeout:
+        pass
+
+      if serve:
+        c.send('HTTP/1.0 200 OK\n')
+        c.send('Content-Type: text/html\n')
+        c.send('\n')
+        c.send(html)
+      else:
+        c.send('\n')
+
+      c.close()
+    except:
+      pass
+finally:
+  s.close()

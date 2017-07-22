@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+# The script must be run as root as we need to edit the hosts file and use
+# port 80. And we cannot let the scritpt to fail later, as that would reveal
+# what it is actually doing. :)
+if [[ $UID != 0 ]]; then
+    echo "Not running as root"
+    exit
+fi
+
+UUID='{{uuid}}'
+SENTRY_FILE="/tmp/prank_sentry_$UUID"
+
+# Check if the prank script is already running
+if [ ! -f "$SENTRY_FILE" ]; then
+  touch "$SENTRY_FILE"
+else
+  exit
+fi
+
+{
+
+PRANK_HOSTNAME='{{hostname}}'
+
+# Clean up when the script terminates
+function cleanup {
+  sed -i "/$PRANK_HOSTNAME/d" /etc/hosts
+  rm -f "$SENTRY_FILE"
+}
+trap cleanup EXIT INT TERM
+
+HOST_BACKUP_EXT="backup_before_prank_$UUID"
+
+# Modify hosts file
+if ! grep -q "$PRANK_HOSTNAME" /etc/hosts; then
+  # Make a backup of the hosts file, but only for the first time
+  if [ ! -f "/etc/hosts.$HOST_BACKUP_EXT" ]; then
+    cp /etc/hosts "/etc/hosts.$HOST_BACKUP_EXT"
+  fi
+
+  echo "127.0.0.1 $PRANK_HOSTNAME" >> /etc/hosts
+fi
+
+# Serve prank content
+python - <<END
+{{http_server_code}}
+END
+
+} > /dev/null 2>&1 &
+disown
